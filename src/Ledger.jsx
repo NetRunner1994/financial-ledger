@@ -834,11 +834,20 @@ export default function Ledger() {
       <style>{CSS}</style>
 
       <header style={S.header}>
-        <div>
-          <div style={S.wordmark}>
-            LED<span style={{ color: C.accent }}>GER</span>
+        <div style={S.brand}>
+          <img
+            src={`${import.meta.env.BASE_URL}icon-192.png`}
+            alt=""
+            width={36}
+            height={36}
+            style={S.logo}
+          />
+          <div>
+            <div style={S.wordmark}>
+              LED<span style={{ color: C.accent }}>GER</span>
+            </div>
+            <div style={S.tagline}>what's owed, and when</div>
           </div>
-          <div style={S.tagline}>what's owed, and when</div>
         </div>
         <button className="lg-btn lg-primary" onClick={() => setView({ type: "add" })}>
           + Add bill
@@ -1887,6 +1896,15 @@ const S = {
     justifyContent: "space-between",
     gap: 12,
     marginBottom: 20,
+  },
+  brand: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+  },
+  logo: {
+    borderRadius: 8,
+    flexShrink: 0,
   },
   wordmark: {
     fontFamily: MONO,
