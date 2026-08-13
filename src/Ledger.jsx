@@ -550,6 +550,14 @@ export default function Ledger() {
       shiftWeekend: !!data.shiftWeekend,
       autopay: !!data.autopay,
       notes: (data.notes || "").trim(),
+      totalBalance:
+        data.totalBalance !== "" && data.totalBalance != null
+          ? Math.max(0, parseFloat(data.totalBalance) || 0)
+          : null,
+      creditLimit:
+        data.creditLimit !== "" && data.creditLimit != null
+          ? Math.max(0, parseFloat(data.creditLimit) || 0)
+          : null,
     };
     const isNew = !bills.some((x) => x.id === bill.id);
     const nextBills = isNew
@@ -1272,6 +1280,12 @@ function BillRow({ bill, sum, today, onOpen }) {
         )}
         {bill.apr > 0 && <span style={S.tag}>{bill.apr}% APR</span>}
         {bill.autopay && <span style={S.tag}>AUTO</span>}
+        {bill.creditLimit > 0 && bill.totalBalance != null && (
+          <span style={S.tag}>
+            {Math.round(Math.min(100, (bill.totalBalance / bill.creditLimit) * 100))}%
+            of limit
+          </span>
+        )}
       </div>
       {(sum.fees > 0 || sum.interest > 0) && (
         <div style={S.rowFee}>
@@ -1297,9 +1311,14 @@ function BillSheet({ bill, today, onSave, onClose }) {
     shiftWeekend: bill?.shiftWeekend || false,
     autopay: bill?.autopay || false,
     notes: bill?.notes || "",
+    totalBalance: bill?.totalBalance != null ? String(bill.totalBalance) : "",
+    creditLimit: bill?.creditLimit != null ? String(bill.creditLimit) : "",
   });
   const [advanced, setAdvanced] = useState(
     !!(bill && (bill.apr || bill.flatFee || bill.graceDays || bill.shiftWeekend))
+  );
+  const [showBalance, setShowBalance] = useState(
+    !!(bill && (bill.totalBalance != null || bill.creditLimit != null))
   );
   const [applyToOpen, setApplyToOpen] = useState(false);
   const [error, setError] = useState("");
@@ -1436,6 +1455,45 @@ function BillSheet({ bill, today, onSave, onClose }) {
             title="Apply new terms to open charges"
             hint="off means past charges keep the rate they were billed under"
           />
+        </div>
+      )}
+
+      <button className="lg-disclose" onClick={() => setShowBalance(!showBalance)}>
+        {showBalance ? "−" : "+"} Total balance & limit
+      </button>
+
+      {showBalance && (
+        <div style={S.advanced}>
+          <div style={S.fieldRow}>
+            <Field label="Total balance owed" flex>
+              <input
+                className="lg-input"
+                value={f.totalBalance}
+                inputMode="decimal"
+                onChange={(e) =>
+                  set("totalBalance", e.target.value.replace(/[^0-9.]/g, ""))
+                }
+                placeholder="0.00"
+              />
+            </Field>
+            <Field label="Credit limit (optional)" flex>
+              <input
+                className="lg-input"
+                value={f.creditLimit}
+                inputMode="decimal"
+                onChange={(e) =>
+                  set("creditLimit", e.target.value.replace(/[^0-9.]/g, ""))
+                }
+                placeholder="0.00"
+              />
+            </Field>
+          </div>
+          <p style={S.helper}>
+            For reference only, so this doesn't feed into what posts each cycle above.
+            Use it for a card's full statement balance against its limit, a mortgage or
+            loan's remaining principal, or anything else with a running total worth
+            tracking.
+          </p>
         </div>
       )}
 
@@ -1647,6 +1705,44 @@ function DetailSheet({
           {sum.lifetimePaid > 0 && <span>{money(sum.lifetimePaid)} paid to date</span>}
         </div>
       </div>
+
+      {(bill.totalBalance != null || bill.creditLimit != null) && (
+        <div style={S.balanceBlock}>
+          <div style={S.balanceRow}>
+            <span style={S.figLabel}>
+              {bill.creditLimit != null ? "Balance vs. limit" : "Total balance owed"}
+            </span>
+            <span style={S.balanceValue}>
+              {bill.totalBalance != null ? money(bill.totalBalance) : "—"}
+              {bill.creditLimit != null && (
+                <span style={S.balanceOf}> of {money(bill.creditLimit)}</span>
+              )}
+            </span>
+          </div>
+          {bill.creditLimit > 0 && bill.totalBalance != null && (
+            <>
+              <div style={S.utilTrack}>
+                <div
+                  style={{
+                    ...S.utilFill,
+                    width: `${Math.min(100, (bill.totalBalance / bill.creditLimit) * 100)}%`,
+                    background:
+                      bill.totalBalance / bill.creditLimit >= 0.7
+                        ? C.overdue
+                        : bill.totalBalance / bill.creditLimit >= 0.3
+                        ? C.soon
+                        : C.paid,
+                  }}
+                />
+              </div>
+              <div style={S.figSub}>
+                {Math.round(Math.min(100, (bill.totalBalance / bill.creditLimit) * 100))}%
+                of limit used
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {bill.notes && <p style={S.notes}>{bill.notes}</p>}
 
@@ -2305,6 +2401,29 @@ const S = {
     color: C.dim,
   },
   notes: { fontSize: 12, color: C.dim, margin: "0 0 16px", lineHeight: 1.5 },
+  balanceBlock: {
+    background: C.panel,
+    border: `1px solid ${C.lineSoft}`,
+    borderRadius: 7,
+    padding: "11px 12px",
+    marginBottom: 16,
+  },
+  balanceRow: {
+    display: "flex",
+    alignItems: "baseline",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  balanceValue: { fontFamily: MONO, fontSize: 15, fontWeight: 600, color: C.ink },
+  balanceOf: { fontSize: 11, fontWeight: 400, color: C.dimmer },
+  utilTrack: {
+    height: 5,
+    borderRadius: 5,
+    background: C.lineSoft,
+    marginTop: 9,
+    overflow: "hidden",
+  },
+  utilFill: { height: "100%", borderRadius: 5 },
   detailHead: {
     display: "flex",
     justifyContent: "space-between",
